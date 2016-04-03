@@ -8,25 +8,31 @@
 #ifndef SRC_TRACE_HPP_
 #define SRC_TRACE_HPP_
 
+
+
 #define ARP_TYPE 0xe
 
 typedef struct ethernet {
-	unsigned char src[6];
-	unsigned char dest[6];
+	ether_addr src;
+	ether_addr dest;
 	unsigned char type[2];
 };
 
 typedef struct arp {
 	unsigned char op[2];
-	unsigned char sendermac[6];
-	unsigned char senderip[4];
-	unsigned char targetmac[6];
-	unsigned char targetip[4];
+	ether_addr sendermac;
+	in_addr senderip;
+	ether_addr targetmac;
+	in_addr targetip;
 };
 
 void getethernet(const u_char *pktdata, ethernet *e);
 
-int printethernet(ethernet *e);
+int printethernet(ethernet *eheader);
+
+void getarp(const u_char *pktdata, arp *aheader );
+
+void printarp(arp *aheader);
 
 void analyze(pcap_t *cap);
 
