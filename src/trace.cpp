@@ -102,6 +102,9 @@ int printip(ip *iheader, const u_char *pktdata) {
 		case ICMP_TYPE:
 			printf("\t\tProtocol: ICMP\n");
 			break;
+		case TCP_TYPE:
+			printf("\t\tProtocol: TCP\n");
+			break;
 		default:
 			printf("\t\tProtocol: Unknown\n");
 			break;
@@ -112,7 +115,7 @@ int printip(ip *iheader, const u_char *pktdata) {
 	else
 		printf("\t\tChecksum: Incorrect (0x%02x%02x)\n",iheader->checksum[0],iheader->checksum[1]);
 	printf("\t\tSender IP: %s\n",inet_ntoa(iheader->srcip));
-	printf("\t\tDest IP: %s\n",inet_ntoa(iheader->destip));
+	printf("\t\tDest IP: %s\n\n",inet_ntoa(iheader->destip));
 	return iheader->prot;
 }
 
@@ -135,9 +138,54 @@ void printtcp(tcp *tcpheader) {
 	printf("\tTCP Header\n");
 	printf("\t\tSource Port: %hu\n",tcpheader->srcport);
 	printf("\t\tDest Port: %hu\n",tcpheader->destport);
-	printf("\t\tSequence Number: %d\n",tcpheader->seq);
-	printf("\t\tACK Number: %d\n",tcpheader->ack);
-	printf("\t\tData Offset (bytes) : %d",tcpheader->offset);
+	printf("\t\tSequence Number: %u\n",tcpheader->seq);
+	printf("\t\tACK Number: %u\n",tcpheader->ack);
+	printf("\t\tData Offset (bytes) : %d\n",tcpheader->offset*4);
+	if(tcpheader->synf)
+		printf("\t\tSYN Flag: Yes\n");
+	else
+		printf("\t\tSYN Flag: No\n");
+
+	if(tcpheader->rstf)
+		printf("\t\tRST Flag: Yes\n");
+	else
+		printf("\t\tRST Flag: No\n");
+	if(tcpheader->finf)
+		printf("\t\tFIN Flag: Yes\n");
+	else
+		printf("\t\tFIN Flag: No\n");
+	if(tcpheader->ackf)
+		printf("\t\tACK Flag: Yes\n");
+	else
+		printf("\t\tACK Flag: No\n");
+	printf("\t\tWindow Size: %hu\n",tcpheader->window);
+
+}
+
+void check_tcpheader(const u_char *pktdata, ip *ipheader,tcp *tcpheader, unsigned short packsize) {
+	unsigned short ip_total;
+	memcpy(&ip_total,pktdata+16,2);
+	ip_total = ntohs(ip_total);
+
+	unsigned short tcp_payload_size = ip_total - ipheader->hlen*4 - tcpheader->offset*4;
+
+	unsigned short tcp_total_size = tcp_payload_size+tcpheader->offset*4;
+
+	unsigned short header_buff[(tcp_total_size+12)/2];
+
+	unsigned short cons = 6;
+	cons = htons(cons);
+	unsigned short n_total = htons(tcp_total_size);
+
+	memcpy(header_buff,&ipheader->srcip,4);
+	memcpy(header_buff+2,&ipheader->destip,4);
+	memcpy(header_buff+4,&cons,2);
+	memcpy(header_buff+5,&n_total,2);
+	memcpy(header_buff+6,pktdata+14+ipheader->hlen*4,tcp_total_size);
+	if(in_cksum( header_buff,tcp_total_size+12)==0)
+		printf("\t\tChecksum: Correct (0x%02x%02x)\n",tcpheader->checksum[0],tcpheader->checksum[1]);
+	else
+		printf("\t\tChecksum: Incorrect (0x%02x%02x)\n",tcpheader->checksum[0],tcpheader->checksum[1]);
 }
 
 void gettcp(const u_char *pktdata, tcp *tcpheader, unsigned char ihlen) {
@@ -152,8 +200,22 @@ void gettcp(const u_char *pktdata, tcp *tcpheader, unsigned char ihlen) {
 	tcpheader->ack = ntohl(tcpheader->ack);
 	memcpy(&tcpheader->offset,pktdata+ihlen+26,1);
 	tcpheader->offset = tcpheader->offset >>4;
-	tcpheader->offset = tcpheader->offset>>2 | ((tcpheader->offset << 2)&0xc);
+	memcpy(&tcpheader->synf,pktdata+ihlen+27,1);
+	tcpheader->synf = tcpheader->synf>>1 &0x1;
 
+	memcpy(&tcpheader->rstf,pktdata+ihlen+27,1);
+	tcpheader->rstf = tcpheader->rstf>>2 &0x1;
+
+	memcpy(&tcpheader->finf,pktdata+ihlen+27,1);
+	tcpheader->finf = tcpheader->finf>>0 &0x1;
+
+	memcpy(&tcpheader->ackf,pktdata+ihlen+27,1);
+	tcpheader->ackf = tcpheader->ackf>>4 &0x1;
+
+	memcpy(&tcpheader->window,pktdata+ihlen+28,2);
+	tcpheader->window = ntohs(tcpheader->window);
+
+	memcpy(&tcpheader->checksum,pktdata+ihlen+30,2);
 }
 
 void analyze(pcap_t *cap) {
@@ -187,11 +249,12 @@ void analyze(pcap_t *cap) {
 					case TCP_TYPE:
 						gettcp(pktdata, &tcpheader,iheader.hlen);
 						printtcp(&tcpheader);
+						check_tcpheader(pktdata,&iheader,&tcpheader, genericheader->len);
 						break;
 				}
 				break;
 		}
-		break;
+
 
 	}
 

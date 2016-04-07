@@ -51,9 +51,11 @@ struct tcp {
 	unsigned char rstf;
 	unsigned char finf;
 	unsigned char ackf;
-	unsigned char window[2];
+	unsigned short window;
 	unsigned char checksum[2];
 };
+
+
 
 
 void getethernet(const u_char *pktdata, ethernet *e);
@@ -75,6 +77,8 @@ void printicmp(const u_char *pktdata,unsigned char ihlen);
 void gettcp(const u_char *pktdata, tcp *tcpheader, unsigned char ihlen);
 
 void printtcp(tcp *tcpheader);
+
+void check_tcpheader(const u_char *pktdata, ip *ipheader, unsigned short packsize);
 
 void analyze(pcap_t *cap);
 
