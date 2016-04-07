@@ -14,6 +14,9 @@
 #define IP_TYPE 0x8
 #define ICMP_TYPE 0x1
 #define TCP_TYPE 0x6
+#define HTTP_TYPE 80
+#define UDP_TYPE 0x11
+#define DNS_TYPE 53
 
 struct ethernet {
 	ether_addr src;
@@ -55,6 +58,11 @@ struct tcp {
 	unsigned char checksum[2];
 };
 
+struct udp {
+	unsigned short srcport;
+	unsigned short destport;
+};
+
 
 
 
@@ -81,6 +89,10 @@ void printtcp(tcp *tcpheader);
 void check_tcpheader(const u_char *pktdata, ip *ipheader, unsigned short packsize);
 
 void analyze(pcap_t *cap);
+
+void getudp(const u_char *pktdata,udp *udpheader);
+
+void printudp(udp *udpheader);
 
 
 

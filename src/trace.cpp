@@ -105,6 +105,10 @@ int printip(ip *iheader, const u_char *pktdata) {
 		case TCP_TYPE:
 			printf("\t\tProtocol: TCP\n");
 			break;
+
+		case UDP_TYPE:
+			printf("\t\tProtocol: UDP\n");
+			break;
 		default:
 			printf("\t\tProtocol: Unknown\n");
 			break;
@@ -136,8 +140,23 @@ void printicmp(const u_char *pktdata,unsigned char ihlen) {
 
 void printtcp(tcp *tcpheader) {
 	printf("\tTCP Header\n");
-	printf("\t\tSource Port: %hu\n",tcpheader->srcport);
-	printf("\t\tDest Port: %hu\n",tcpheader->destport);
+	switch(tcpheader->srcport) {
+		case HTTP_TYPE:
+			printf("\t\tSource Port: HTTP\n");
+			break;
+		default:
+			printf("\t\tSource Port: %hu\n",tcpheader->srcport);
+			break;
+	}
+
+	switch (tcpheader->destport) {
+		case HTTP_TYPE:
+			printf("\t\tDest Port: HTTP\n");
+			break;
+		default:
+			printf("\t\tDest Port: %hu\n",tcpheader->destport);
+			break;
+	}
 	printf("\t\tSequence Number: %u\n",tcpheader->seq);
 	printf("\t\tACK Number: %u\n",tcpheader->ack);
 	printf("\t\tData Offset (bytes) : %d\n",tcpheader->offset*4);
@@ -218,6 +237,38 @@ void gettcp(const u_char *pktdata, tcp *tcpheader, unsigned char ihlen) {
 	memcpy(&tcpheader->checksum,pktdata+ihlen+30,2);
 }
 
+void getudp(const u_char *pktdata, udp *udpheader, unsigned char hlen) {
+	hlen*=4;
+	memcpy(&udpheader->srcport,pktdata+14+hlen,2);
+	udpheader->srcport = ntohs(udpheader->srcport);
+	memcpy(&udpheader->destport,pktdata+14+hlen+2,2);
+	udpheader->destport = ntohs(udpheader->destport);
+
+}
+
+void printudp(udp * udpheader) {
+	printf("\tUDP Header\n");
+	switch(udpheader->srcport) {
+		case DNS_TYPE:
+			printf("\t\tSource Port:  DNS\n");
+			break;
+		default:
+			printf("\t\tSource Port:  %hu\n",udpheader->srcport);
+			break;
+	}
+
+	switch (udpheader->destport) {
+		case DNS_TYPE:
+			printf("\t\tDest Port:  DNS\n");
+			break;
+		default:
+			printf("\t\tDest Port:  %hu\n",udpheader->destport);
+			break;
+	}
+
+
+}
+
 void analyze(pcap_t *cap) {
 	pcap_pkthdr *genericheader;
 	const u_char *pktdata;
@@ -225,6 +276,7 @@ void analyze(pcap_t *cap) {
 	arp aheader;
 	ip iheader;
 	tcp tcpheader;
+	udp udpheader;
 	int i = 1;
 	int type;
 	int iptype;
@@ -251,6 +303,9 @@ void analyze(pcap_t *cap) {
 						printtcp(&tcpheader);
 						check_tcpheader(pktdata,&iheader,&tcpheader, genericheader->len);
 						break;
+					case UDP_TYPE:
+						getudp(pktdata, &udpheader,iheader.hlen);
+						printudp(&udpheader);
 				}
 				break;
 		}
