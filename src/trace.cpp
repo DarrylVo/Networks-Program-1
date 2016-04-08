@@ -77,17 +77,13 @@ void getip(const u_char *pktdata, ip *iheader) {
 }
 
 int check_ipchecksum(const u_char *pktdata) {
-	unsigned short data[10];
-	unsigned short *temp = data;
+	unsigned short ipheader[10];
+	unsigned short *temp = ipheader;
 	for(int i = 0; i < 10; i ++) {
-
-			memcpy(temp++,pktdata+14+i*2,2);
-			data[i] = ntohs(data[i]);
-			//printf("moving:%x\n",data[i]);
-
+		memcpy(temp++,pktdata+14+i*2,2);
+		ipheader[i] = ntohs(ipheader[i]);
 	}
-
-	return !in_cksum(data,20);
+	return !in_cksum(ipheader,20);
 }
 
 int printip(ip *iheader, const u_char *pktdata) {
